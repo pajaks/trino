@@ -41,6 +41,7 @@ import io.trino.plugin.hive.metastore.glue.AwsApiCallStats;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
+import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.apache.iceberg.FileFormat;
 import org.junit.jupiter.api.AfterAll;
@@ -101,7 +102,7 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
                                 "iceberg.writer-sort-buffer-size", "1MB"))
                 .setSchemaInitializer(
                         SchemaInitializer.builder()
-                                .withClonedTpchTables(REQUIRED_TPCH_TABLES)
+//                                .withClonedTpchTables(REQUIRED_TPCH_TABLES)
                                 .withSchemaName(schemaName)
                                 .build())
                 .build();
@@ -206,6 +207,34 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
     protected String schemaPath()
     {
         return format("s3://%s/%s", bucketName, schemaName);
+    }
+
+    @Test
+    public void testDoubleSlash()
+            throws Exception
+    {
+        String tableName = "test_double_slash" + randomNameSuffix();
+        String doubleSlashLocation = format("s3a://%s/%s//%s", bucketName, schemaName, tableName);
+
+        assertQuerySucceeds(format("CREATE TABLE %s WITH (location = '%s') AS SELECT 1 AS a, 'INDIA' AS b, true AS c", tableName, doubleSlashLocation));
+        assertQuery("SELECT * FROM " + tableName, "VALUES (1, 'INDIA', true)");
+
+        DistributedQueryRunner queryRunner = IcebergQueryRunner.builder()
+                .setIcebergProperties(
+                        ImmutableMap.of(
+                                "iceberg.file-format", format.name(),
+                                "iceberg.catalog.type", "glue",
+                                "hive.metastore.glue.default-warehouse-dir", schemaPath(),
+                                "iceberg.register-table-procedure.enabled", "true",
+                                "fs.hadoop.enabled", "false",
+                                "fs.native-s3.enabled", "true",
+                                "s3.path-style-access", "true",
+                                "iceberg.writer-sort-buffer-size", "1MB"))
+                .build();
+
+        queryRunner.execute("SELECT * FROM " + schemaName + "." + tableName);
+
+        assertUpdate("DROP TABLE " + tableName);
     }
 
     @Override

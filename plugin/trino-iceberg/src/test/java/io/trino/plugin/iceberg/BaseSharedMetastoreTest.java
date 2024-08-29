@@ -57,6 +57,9 @@ public abstract class BaseSharedMetastoreTest
     @Test
     public void testReadInformationSchema()
     {
+        assertThat(query("SELECT table_schema FROM hive.information_schema.tables WHERE table_schema='" + tpchSchema + "'"))
+                .skippingTypesCheck()
+                .containsAll("VALUES '" + tpchSchema + "'");
         assertThat(query("SELECT table_schema FROM hive.information_schema.tables WHERE table_name = 'region' AND table_schema='" + tpchSchema + "'"))
                 .skippingTypesCheck()
                 .containsAll("VALUES '" + tpchSchema + "'");

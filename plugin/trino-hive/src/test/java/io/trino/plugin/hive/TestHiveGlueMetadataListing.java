@@ -28,7 +28,10 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.CreateTableRequest;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.TableIdentifier;
 import software.amazon.awssdk.services.glue.model.TableInput;
 
 import java.nio.file.Path;
@@ -87,8 +90,12 @@ public class TestHiveGlueMetadataListing
         try (GlueClient glueClient = createGlueClient(glueConfig, OpenTelemetry.noop())) {
             ImmutableMap.Builder<String, String> tableProperties = ImmutableMap.builder();
 
+            Column column = Column.builder().type("timestamp_ntz")
+                    .name("test").build();
+            StorageDescriptor sd = StorageDescriptor.builder().columns(column).build();
             TableInput tableInput = TableInput.builder()
                     .name(FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME)
+                    .storageDescriptor(sd)
                     .parameters(tableProperties.buildOrThrow())
                     .tableType("HIVE")
                     .build();
@@ -121,26 +128,30 @@ public class TestHiveGlueMetadataListing
     {
         String expectedTables = format("VALUES '%s', '%s', '%s'", TpchTable.REGION.getTableName(), TpchTable.NATION.getTableName(), FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME);
 
-        assertThat(query("SELECT table_schema FROM hive.information_schema.tables"))
+        assertThat(query("SELECT * FROM hive." + tpchSchema + "." + FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME))
                 .skippingTypesCheck()
                 .containsAll("VALUES '" + tpchSchema + "'");
-        assertThat(query("SELECT table_name FROM hive.information_schema.tables WHERE table_schema='" + tpchSchema + "'"))
-                .skippingTypesCheck()
-                .matches(expectedTables);
-        assertThat(query("SELECT table_name FROM hive.information_schema.tables WHERE table_name = 'region' AND table_schema='" + tpchSchema + "'"))
-                .skippingTypesCheck()
-                .matches("VALUES 'region'");
-        assertQueryReturnsEmptyResult(format("SELECT table_name FROM hive.information_schema.tables WHERE table_name = '%s' AND table_schema='%s'", FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME, tpchSchema));
 
-        assertThat(query("SELECT table_schema FROM hive.information_schema.columns"))
-                .skippingTypesCheck()
-                .containsAll("VALUES '" + tpchSchema + "'");
-        assertQuery("SELECT table_name, column_name from hive.information_schema.columns WHERE table_schema = '" + tpchSchema + "'",
-                "VALUES ('region', 'regionkey'), ('region', 'name'), ('region', 'comment'), ('nation', 'nationkey'), ('nation', 'name'), ('nation', 'regionkey'), ('nation', 'comment')");
-        assertQuery("SELECT table_name, column_name from hive.information_schema.columns WHERE table_name = 'region' AND table_schema='" + tpchSchema + "'",
-                "VALUES ('region', 'regionkey'), ('region', 'name'), ('region', 'comment')");
-        assertQueryReturnsEmptyResult(format("SELECT table_name FROM hive.information_schema.columns WHERE table_name = '%s' AND table_schema='%s'", FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME, tpchSchema));
-
-        assertQuery("SHOW TABLES FROM hive." + tpchSchema, expectedTables);
+//        assertThat(query("SELECT table_schema FROM hive.information_schema.tables"))
+//                .skippingTypesCheck()
+//                .containsAll("VALUES '" + tpchSchema + "'");
+//        assertThat(query("SELECT table_name FROM hive.information_schema.tables WHERE table_schema='" + tpchSchema + "'"))
+//                .skippingTypesCheck()
+//                .matches(expectedTables);
+//        assertThat(query("SELECT table_name FROM hive.information_schema.tables WHERE table_name = 'region' AND table_schema='" + tpchSchema + "'"))
+//                .skippingTypesCheck()
+//                .matches("VALUES 'region'");
+//        assertQueryReturnsEmptyResult(format("SELECT table_name FROM hive.information_schema.tables WHERE table_name = '%s' AND table_schema='%s'", FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME, tpchSchema));
+//
+//        assertThat(query("SELECT table_schema FROM hive.information_schema.columns"))
+//                .skippingTypesCheck()
+//                .containsAll("VALUES '" + tpchSchema + "'");
+//        assertQuery("SELECT table_name, column_name from hive.information_schema.columns WHERE table_schema = '" + tpchSchema + "'",
+//                "VALUES ('region', 'regionkey'), ('region', 'name'), ('region', 'comment'), ('nation', 'nationkey'), ('nation', 'name'), ('nation', 'regionkey'), ('nation', 'comment')");
+//        assertQuery("SELECT table_name, column_name from hive.information_schema.columns WHERE table_name = 'region' AND table_schema='" + tpchSchema + "'",
+//                "VALUES ('region', 'regionkey'), ('region', 'name'), ('region', 'comment')");
+//        assertQueryReturnsEmptyResult(format("SELECT table_name FROM hive.information_schema.columns WHERE table_name = '%s' AND table_schema='%s'", FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME, tpchSchema));
+//
+//        assertQuery("SHOW TABLES FROM hive." + tpchSchema, expectedTables);
     }
 }

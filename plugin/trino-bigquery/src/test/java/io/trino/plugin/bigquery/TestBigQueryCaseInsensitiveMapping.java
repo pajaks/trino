@@ -46,7 +46,7 @@ public class TestBigQueryCaseInsensitiveMapping
                 .setConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("bigquery.case-insensitive-name-matching", "true")
                         .put("bigquery.case-insensitive-name-matching.cache-ttl", "1m")
-                        .put("bigquery.service-cache-ttl", "0ms") // Disable service cache to focus on metadata cache
+//                        .put("bigquery.service-cache-ttl", "0ms") // Disable service cache to focus on metadata cache
                         .buildOrThrow())
                 .build();
     }
@@ -114,6 +114,24 @@ public class TestBigQueryCaseInsensitiveMapping
             assertUpdate("CREATE TABLE " + trinoSchema + ".test_ctas_in_nonlowercase_schema AS SELECT 1 x", 1);
             assertQuery("SELECt * FROM " + trinoSchema + ".test_ctas_in_nonlowercase_schema", "VALUES 1");
         }
+    }
+
+    @Test
+    public void testNonLowerCaseTableName2()
+            throws Exception
+    {
+        assertQuerySucceeds("SELECT * FROM \"bigquery\".\"pajaks_test\".d_customer c\n" +
+                "INNER JOIN tpch.sf10.orders o\n" +
+                "ON c.custkey = o.custkey\n" +
+                "LIMIT 10");
+        assertQuerySucceeds("SELECT * FROM \"bigquery\".\"pajaks_test\".d_nation n\n" +
+                "INNER JOIN tpch.sf10.customer c\n" +
+                "ON c.nationkey = n.nationkey\n" +
+                "LIMIT 10");
+        assertQuerySucceeds("SELECT * FROM \"bigquery\".\"pajaks_test\".d_region r\n" +
+                "INNER JOIN tpch.sf10.nation n\n" +
+                "ON r.regionkey = n.regionkey\n" +
+                "LIMIT 10");
     }
 
     @Test
